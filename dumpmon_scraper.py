@@ -18,9 +18,18 @@ Stats = Stats()
 requests_log = logging.getLogger("requests")  #Disables "Starting new HTTP Connection (1)" log message
 requests_log.setLevel(logging.WARNING)
 
-logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s', filename='dumpmon_scraper.log', level=logging.INFO)
+formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
+fileHandler = logging.FileHandler('dumpmon.log')
+fileHandler.setFormatter(formatter)
+streamHandler = logging.StreamHandler(sys.stdout)
+streamHandler.setFormatter(formatter)
 
-logging.info('Starting...')
+logger = logging.getLogger('dumpmon')
+logger.addHandler(streamHandler)
+logger.addHandler(fileHandler)
+logger.setLevel(logging.INFO)
+
+logger.info('Starting...')
 
 prev_links = []
 
@@ -39,26 +48,26 @@ while True:
                         id = None
 
                     if (id != None):
-                        dump = requests.get(link).text
+                        dump = requests.get(link).text.encode('utf-8', 'ignore')
                         if re.search('paste has been removed', dump, re.IGNORECASE):
-                            logging.info('Dump id {} has been removed! skipping...'.format(id))
+                            logger.info('Dump id {} has been removed! skipping...'.format(id))
                             continue
  
-                        dump_buffer = StringIO(dump.encode('utf-8', 'ignore'))
+                        dump_buffer = StringIO(dump)
                         dump_name = './dumps/' + id
 
                         if id in os.listdir('./dumps'):
-                            logging.info('Dump id {} is present in directory'.format(id))
+                            logger.info('Dump id {} is present in directory'.format(id))
                             with open('./dumps/' + id, 'r') as file:
                                 d_buffer = file.read(500) 
-                                if d_buffer.encode('utf-8', 'ignore') == dump_buffer.read(500):
-                                    logging.info('Contents of dump id {} appear to be the same! skipping...'.format(id))
+                                if d_buffer == dump_buffer.read(500):
+                                    logger.info('Contents of dump id {} appear to be the same! skipping...'.format(id))
                                     continue
                                 else:   
-                                    logging.info('Contents of dump id {} differ! dumping...'.format(id))
+                                    logger.info('Contents of dump id {} differ! dumping...'.format(id))
                                     dump_name = './dumps/{}_{}'.format(id, datetime.strftime('%Y-%m-%d_%H:%M:%S:%s'))
   
-                        Stats.text = dump.encode('utf-8', 'ignore')
+                        Stats.text = dump
                         dump_type = Stats.match()
 
                         log_output = 'New dump detected: %s' % link
@@ -82,15 +91,15 @@ while True:
                             continue
 
                         with open(dump_name, 'w') as file:
-                            file.write(dump.encode('utf-8', 'ignore'))
+                            file.write(dump)
                             file.close()
 
-                        logging.info(log_output)
+                        logger.info(log_output)
 
     except Exception, e:
         exc_type, exc_obj, exc_tb = sys.exc_info()
         fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-        logging.warning((str(e), exc_type, fname, exc_tb.tb_lineno))
+        logger.warning((str(e), exc_type, fname, exc_tb.tb_lineno))
 
     prev_links = links
     sleep(10)

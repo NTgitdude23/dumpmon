@@ -1,6 +1,7 @@
 # project
 settings.py
-output.log
+*.log
+*.log*
 
 # python specific
 *.pyc
